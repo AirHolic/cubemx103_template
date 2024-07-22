@@ -2,6 +2,8 @@
 #include "main.h"
 #include "usart.h"
 #include "usart_printf.h"
+#include "stdarg.h"
+#include "string.h"
 
 /* 如果使用os,则包括下面的头文件即可 */
 #if SYS_SUPPORT_OS
@@ -63,10 +65,110 @@ int fputc(int ch, FILE *f)
 #endif
 /***********************************************END*******************************************/
 
+/**********************************usart外设printf相关函数**************************************/
+/* 空闲中断和dma接收与dma发送 */
 
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
-    if(huart->Instance == USART1){
-        //处理接收到的数据
-        
+/**
+ * @brief 通用串口DMA与空闲中断处理函数
+ * @param huart 串口句柄
+ * @param hdma_usart_rx 串口DMA接收句柄
+ * @param rx_frame 串口接收帧缓冲信息结构体
+ * @retval None
+ */
+void uart_irq(UART_HandleTypeDef *huart, DMA_HandleTypeDef *hdma_usart_rx, uart_rx_frame *rx_frame)
+{
+    uint16_t tmp = 0;
+    if (__HAL_UART_GET_FLAG(huart, UART_FLAG_ORE) != RESET) /* UART接收过载错误中断 */
+    {
+        __HAL_UART_CLEAR_OREFLAG(huart); /* 清除接收过载错误中断标志 */
+        (void)huart->Instance->SR;       /* 先读SR寄存器，再读DR寄存器 */
+        (void)huart->Instance->DR;
+    }
+
+    if (__HAL_UART_GET_FLAG(huart, UART_FLAG_IDLE) != RESET) /* UART总线空闲中断 */
+    {
+        rx_frame->sta.finsh = 1;                                                                  /* 标记帧接收完成 */
+        __HAL_UART_CLEAR_IDLEFLAG(huart);                                                         /* 清除UART总线空闲中断 */
+        HAL_UART_DMAStop(huart);                                                                  /* 停止DMA传输 */
+        tmp = __HAL_DMA_GET_COUNTER(hdma_usart_rx);                                               /* 清除DMA接收中断标志 */
+        rx_frame->sta.len = ((UART_RX_BUFFER_SIZE - tmp) <= 0) ? 0 : (UART_RX_BUFFER_SIZE - tmp); /* 计算接收到的数据长度 */
+        HAL_UART_Receive_DMA(huart, rx_frame->buf, UART_RX_BUFFER_SIZE);                          /* 重新开始DMA传输 */
     }
 }
+
+uint8_t uart_printf(UART_HandleTypeDef *huart, uart_tx_frame *tx_frame, char *fmt, ...)
+{
+    va_list ap;
+    while (tx_frame->sta.finsh == 0)
+        sys_delay_us(1);
+    tx_frame->sta.finsh = 0;
+
+    va_start(ap, fmt);
+    vsprintf((char *)tx_frame->uart_tx_buf, fmt, ap);
+    va_end(ap);
+
+    tx_frame->sta.len = strlen((const char *)tx_frame->uart_tx_buf);
+    return HAL_UART_Transmit_DMA(huart, tx_frame->uart_tx_buf, tx_frame->sta.len);
+}
+
+uint8_t uart_hex_printf(UART_HandleTypeDef *huart, uart_tx_frame *tx_frame, uint8_t *buf, uint16_t len)
+{
+    while (tx_frame->sta.finsh == 0)
+        sys_delay_us(1);//等待发送完成
+    tx_frame->sta.finsh = 0;//标记发送未完成
+
+    memcpy(tx_frame->uart_tx_buf, buf, len);
+    tx_frame->sta.len = len;
+    printf("uart tx hex %d\r\n", len);
+    for (int i = 0; i < len; i++)
+    {
+        printf("%02X ", tx_frame->uart_tx_buf[i]);
+    }
+    printf("\r\n");
+    return HAL_UART_Transmit_DMA(huart, tx_frame->uart_tx_buf, tx_frame->sta.len);
+}
+
+/**
+ * @brief  重置接收缓冲区
+ * @param  rx_frame: 接收帧缓冲区指针
+ */
+void uart_rx_reset(uart_rx_frame *rx_frame)
+{
+    rx_frame->sta.len = 0;
+    rx_frame->sta.finsh = 0;
+}
+
+/**
+ * @brief  获取接收到的数据
+ * @retval 数据指针
+ */
+uint8_t *uart_rx_get_buf(uart_rx_frame *rx_frame)
+{
+    if (rx_frame->sta.finsh == 1)
+    {
+        rx_frame->buf[rx_frame->sta.len] = '\0';
+        return rx_frame->buf;
+    }
+    else
+    {
+        return NULL;
+    }
+}
+
+/**
+ * @brief  获取接收到的数据长度
+ * @retval 数据长度
+ */
+uint16_t uart_rx_get_len(uart_rx_frame rx_frame)
+{
+    if (rx_frame.sta.finsh == 1)
+    {
+        return rx_frame.sta.len;
+    }
+    else
+    {
+        return 0;
+    }
+}
+
+/**********************************************END*********************************************/
