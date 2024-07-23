@@ -1,4 +1,4 @@
-/* 本文件旨在实现重定向printf至USART1，USART1的接收部分需于中断和回调部分自行完成。 */
+/* 本文件旨在实现重定向printf至PRINTF_UART，PRINTF_UART的接收部分需于中断和回调部分自行完成。 */
 #include "main.h"
 #include "usart.h"
 #include "usart_printf.h"
@@ -56,10 +56,10 @@ FILE __stdout;
 /* 重定义fputc函数, printf函数最终会通过调用fputc输出字符串到串口 */
 int fputc(int ch, FILE *f)
 {
-    while ((USART1->SR & 0X40) == 0)
+    while ((PRINTF_UART->SR & 0X40) == 0)
         ; /* 等待上一个字符发送完成 */
 
-    USART1->DR = (uint8_t)ch; /* 将要发送的字符 ch 写入到DR寄存器 */
+    PRINTF_UART->DR = (uint8_t)ch; /* 将要发送的字符 ch 写入到DR寄存器 */
     return ch;
 }
 #endif
@@ -96,36 +96,67 @@ void uart_irq(UART_HandleTypeDef *huart, DMA_HandleTypeDef *hdma_usart_rx, uart_
     }
 }
 
-uint8_t uart_printf(UART_HandleTypeDef *huart, uart_tx_frame *tx_frame, char *fmt, ...)
+/**
+ * @brief 串口等待发送完成标志
+ * @param tx_frame 串口发送帧缓冲信息结构体
+ * @retval None
+ */
+void wait_uart_tx_finish_flag(uart_tx_frame *tx_frame)
 {
-    va_list ap;
     while (tx_frame->sta.finsh == 0)
         sys_delay_us(1);
     tx_frame->sta.finsh = 0;
+}
 
-    va_start(ap, fmt);
-    vsprintf((char *)tx_frame->uart_tx_buf, fmt, ap);
-    va_end(ap);
-
-    tx_frame->sta.len = strlen((const char *)tx_frame->uart_tx_buf);
+/**
+ * @brief 串口发送DMA
+ * @param huart 串口句柄
+ * @param tx_frame 串口发送帧缓冲信息结构体
+ * @retval HAL_StatusTypeDef
+ */
+uint8_t uart_transmit_dma(UART_HandleTypeDef *huart, uart_tx_frame *tx_frame)
+{
     return HAL_UART_Transmit_DMA(huart, tx_frame->uart_tx_buf, tx_frame->sta.len);
 }
 
+/** 串口printf参考函数
+uint8_t uart_printf(UART_HandleTypeDef *huart, uart_tx_frame *tx_frame, char *fmt, ...)
+{
+    va_list ap;
+    wait_uart_tx_finish_flag(tx_frame);
+
+    va_start(ap, fmt);
+    vsnprintf((char *)tx_frame->uart_tx_buf, fmt, ap);
+    va_end(ap);
+
+    tx_frame->sta.len = strlen((const char *)tx_frame->uart_tx_buf);
+    return uart_transmit_dma(huart, tx_frame);
+}
+*/
+
+/**
+ * @brief  串口发送十六进制数据
+ * @param  huart: 串口句柄
+ * @param  tx_frame: 串口发送帧缓冲信息结构体
+ * @param  buf: 待发送的数据
+ * @param  len: 待发送的数据长度
+ * @retval HAL_StatusTypeDef
+*/
 uint8_t uart_hex_printf(UART_HandleTypeDef *huart, uart_tx_frame *tx_frame, uint8_t *buf, uint16_t len)
 {
-    while (tx_frame->sta.finsh == 0)
-        sys_delay_us(1);//等待发送完成
-    tx_frame->sta.finsh = 0;//标记发送未完成
-
+    if(len > UART_TX_BUFFER_SIZE)
+    {
+        return 1;
+    }
+    wait_uart_tx_finish_flag(tx_frame);
     memcpy(tx_frame->uart_tx_buf, buf, len);
     tx_frame->sta.len = len;
-    printf("uart tx hex %d\r\n", len);
     for (int i = 0; i < len; i++)
     {
         printf("%02X ", tx_frame->uart_tx_buf[i]);
     }
     printf("\r\n");
-    return HAL_UART_Transmit_DMA(huart, tx_frame->uart_tx_buf, tx_frame->sta.len);
+    return uart_transmit_dma(huart, tx_frame);
 }
 
 /**

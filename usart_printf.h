@@ -3,6 +3,8 @@
 
 #include <stdio.h>
 
+#define PRINTF_UART USART1
+
 #define UART_RX_BUFFER_SIZE 256
 #define UART_TX_BUFFER_SIZE 256
 
@@ -29,7 +31,8 @@ void uart_irq(UART_HandleTypeDef *huart, DMA_HandleTypeDef *hdma_usart_rx,uart_r
 void uart_rx_reset(uart_rx_frame *rx_frame);
 uint8_t *uart_rx_get_buf(uart_rx_frame *rx_frame);
 uint16_t uart_rx_get_len(uart_rx_frame rx_frame);
-uint8_t uart_printf(UART_HandleTypeDef *huart, uart_tx_frame *tx_frame, char *fmt, ...);
+void wait_uart_tx_finish_flag(uart_tx_frame *tx_frame);
+uint8_t uart_transmit_dma(UART_HandleTypeDef *huart, uart_tx_frame *tx_frame);
 uint8_t uart_hex_printf(UART_HandleTypeDef *huart, uart_tx_frame *tx_frame, uint8_t *buf, uint16_t len);
 
 #endif /* __USART_PRINTF_H__ */
