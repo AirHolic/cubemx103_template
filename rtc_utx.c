@@ -1,6 +1,5 @@
 #include "rtc_utx.h"
 #include <time.h>
-#include "usart_printf.h"
 /**
  * @brief 时间戳日期数组
  */
@@ -171,3 +170,80 @@ time_t rtc_to_utx(Times rtc)
   t.tm_wday = rtc.WeekDay;
   return mymktime(&t);
 }
+
+#ifdef __RTC_EXAMPLE
+/**
+  * @brief  获取当前时间的时间戳
+  * @param  None
+  * @retval 时间戳
+  */
+time_t get_uts(void)
+{
+  RTC_DateTypeDef GetDate = {0}; // 获取日期结构体
+  RTC_TimeTypeDef GetTime = {0}; // 获取时间结构体
+
+  Times time_c;
+
+  HAL_RTC_GetTime(&hrtc, &GetTime, RTC_FORMAT_BIN);
+  HAL_RTC_GetDate(&hrtc, &GetDate, RTC_FORMAT_BIN);
+
+  time_c.Year = GetDate.Year;
+  time_c.Mon = GetDate.Month;
+  time_c.Day = GetDate.Date;
+  time_c.Hour = GetTime.Hours;
+  time_c.Min = GetTime.Minutes;
+  time_c.Second = GetTime.Seconds;
+  time_c.WeekDay = GetDate.WeekDay;
+#ifdef RTC_DBUG
+  Lora_printf("time_c.Year = %d\r\n", time_c.Year);
+  Lora_printf("time_c.Mon = %d\r\n", time_c.Mon);
+  Lora_printf("time_c.Day = %d\r\n", time_c.Day);
+  Lora_printf("time_c.WeekDay = %d\r\n", time_c.WeekDay);
+  Lora_printf("time_c.Hour = %d\r\n", time_c.Hour);
+  Lora_printf("time_c.Min = %d\r\n", time_c.Min);
+  Lora_printf("time_c.Second = %d\r\n", time_c.Second);
+#endif // RTC_DBUG
+  return rtc_to_utx(time_c);
+}
+
+/**
+ * @brief  通过时间戳设置时间
+ * @param  utx 时间戳
+ * @retval HAL_StatusTypeDef
+ */
+HAL_StatusTypeDef uts_set_time(time_t utx)
+{
+  Times rtc = utx_to_rtc(utx);
+  RTC_TimeTypeDef sTime = {0};
+  RTC_DateTypeDef DateToUpdate = {0};
+#ifdef RTC_DBUG
+  Lora_printf("rtc.Year = %d\r\n", rtc.Year);
+  Lora_printf("rtc.Mon = %d\r\n", rtc.Mon);
+  Lora_printf("rtc.Day = %d\r\n", rtc.Day);
+  Lora_printf("rtc.WeekDay = %d\r\n", rtc.WeekDay);
+  Lora_printf("rtc.Hour = %d\r\n", rtc.Hour);
+  Lora_printf("rtc.Min = %d\r\n", rtc.Min);
+  Lora_printf("rtc.Second = %d\r\n", rtc.Second);
+#endif // RTC_DBUG
+  sTime.Hours = rtc.Hour;
+  sTime.Minutes = rtc.Min;
+  sTime.Seconds = rtc.Second;
+
+  if (HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BIN) != HAL_OK)//
+  {
+    return HAL_ERROR;
+  }
+
+  DateToUpdate.WeekDay = rtc.WeekDay;
+  DateToUpdate.Month = rtc.Mon;
+  DateToUpdate.Date = rtc.Day;
+  DateToUpdate.Year = rtc.Year;
+
+  if (HAL_RTC_SetDate(&hrtc, &DateToUpdate, RTC_FORMAT_BIN) != HAL_OK)
+  {
+    return HAL_ERROR;
+  }
+
+  return HAL_OK;
+}
+#endif // __RTC_EXAMPLE
