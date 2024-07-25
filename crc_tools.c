@@ -1,6 +1,6 @@
 #include "crc.h"
 #include "string.h"
-#include "crc_tool.h"
+#include "crc_tools.h"
 
 /**
  * @brief 将uint8数据打包为uint32_t数组数据，例如：0x00040004
@@ -51,11 +51,10 @@ static uint16_t crc_data_len(uint8_t *buf)
 uint32_t crc_calculate(uint8_t *input, uint16_t input_len)
 {
     uint32_t crc = 0xFFFFFFFF;
-    uint32_t input32[crc_data_len(input)];
+    uint32_t crc_data[crc_data_len(input)];
     Lora_printf("input_len: %d\r\n",input_len);
-    pack_hex_to_uint32(input,input32,input_len);
-    crc = HAL_CRC_Calculate(&hcrc, input32, crc_data_len(input));
+    pack_hex_to_uint32(input,crc_data,input_len);
+    crc = HAL_CRC_Calculate(&hcrc, crc_data, crc_data_len(input));
     Lora_printf("crc_calculate: %#08X\r\n",crc);
     return crc;
 }
-
