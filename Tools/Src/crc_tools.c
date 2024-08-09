@@ -37,9 +37,9 @@ static void pack_hex_to_uint32(uint8_t *input, uint32_t *output, uint16_t input_
  * @param buf 需要进行处理的十六进制数据
  * @return 返回计算后的crc校验数据长度
 */
-static uint16_t crc_data_len(uint8_t *buf)
+static uint16_t crc_data_len(uint8_t *buf, uint16_t buf_len)
 {
-    return (sizeof(buf)/sizeof(uint8_t) + 3) / 4;
+    return (buf_len + 3) / 4;
 }
 
 /**
@@ -51,10 +51,8 @@ static uint16_t crc_data_len(uint8_t *buf)
 uint32_t crc_calculate(uint8_t *input, uint16_t input_len)
 {
     uint32_t crc = 0xFFFFFFFF;
-    uint32_t crc_data[crc_data_len(input)];
-    Lora_printf("input_len: %d\r\n",input_len);
+    uint32_t crc_data[crc_data_len(input,input_len)];
     pack_hex_to_uint32(input,crc_data,input_len);
-    crc = HAL_CRC_Calculate(&hcrc, crc_data, crc_data_len(input));
-    Lora_printf("crc_calculate: %#08X\r\n",crc);
+    crc = HAL_CRC_Calculate(&hcrc, crc_data, crc_data_len(input,input_len));
     return crc;
 }

@@ -97,6 +97,18 @@ void uart_irq(UART_HandleTypeDef *huart, DMA_HandleTypeDef *hdma_usart_rx, uart_
 }
 
 /**
+ * @brief 使能串口DMA与空闲中断
+ * @param huart 串口句柄
+ * @retval None
+ */
+void uart_enable_dma_it(UART_HandleTypeDef *huart, uart_rx_frame *rx_frame, uart_tx_frame *tx_frame)
+{
+	__HAL_UART_ENABLE_IT(huart, UART_IT_IDLE); /* 使能IDLE中断 */
+    HAL_UART_Receive_DMA(huart, rx_frame->buf, UART_RX_BUFFER_SIZE); /* 开启DMA接收 */
+    tx_frame->sta.finsh = 1; /* 标记帧发送完成 */
+}
+
+/**
  * @brief 串口等待发送完成标志
  * @param tx_frame 串口发送帧缓冲信息结构体
  * @retval None
@@ -126,13 +138,15 @@ uint8_t uart_printf(UART_HandleTypeDef *huart, uart_tx_frame *tx_frame, char *fm
     wait_uart_tx_finish_flag(tx_frame);
 
     va_start(ap, fmt);
-    vsnprintf((char *)tx_frame->uart_tx_buf, fmt, ap);
+    vsprintf((char *)tx_frame->uart_tx_buf, fmt, ap);
     va_end(ap);
 
     tx_frame->sta.len = strlen((const char *)tx_frame->uart_tx_buf);
     return uart_transmit_dma(huart, tx_frame);
 }
 */
+
+
 
 /**
  * @brief  串口发送十六进制数据
