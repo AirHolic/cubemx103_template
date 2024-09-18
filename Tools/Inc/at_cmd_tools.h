@@ -32,6 +32,7 @@ typedef enum
 } at_cmd_status_t;
 
 #define AT_WAIT_ACK_TIMEOUT 3000
+#define AT_SP_SEND_CMD "%s"
 
 at_cmd_status_t at_ack_get_str_parameter(uint8_t *src, uint8_t param_num, uint16_t *param_index, uint16_t *param_len);
 at_cmd_status_t at_ack_get_normal_parameter(uint8_t *src, uint8_t param_num, uint16_t *param_index, uint16_t *param_len);
