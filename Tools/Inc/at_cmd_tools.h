@@ -2,6 +2,7 @@
 #define __AT_CMD_TOOLS_H__
 
 typedef uint8_t (*p_printf_cmd)(char *fmt, ...);
+typedef uint8_t (*p_hex_printf_cmd)(uint8_t *buf, uint16_t len);
 typedef void (*p_ack_restart)(void);
 typedef void (*p_delay_ms)(uint32_t ms);
 typedef uint8_t* (*p_get_buf)(void);
@@ -21,6 +22,7 @@ typedef struct __at_device_t
     p_ack_restart at_ack_restart;
     p_delay_ms at_delay_ms;
     p_get_buf at_cmd_ack;
+    p_hex_printf_cmd at_hex_printf_cmd;
 } at_device_t;
 
 typedef enum

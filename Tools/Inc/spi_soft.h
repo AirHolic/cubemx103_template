@@ -1,0 +1,17 @@
+#ifndef __SPI_SOFT_H__
+#define __SPI_SOFT_H__
+
+#define SPI_SOFT_CS_LOW()       HAL_GPIO_WritePin(SPI_SOFT_CS_GPIO_Port, SPI_SOFT_CS_Pin, GPIO_PIN_RESET)
+#define SPI_SOFT_CS_HIGH()      HAL_GPIO_WritePin(SPI_SOFT_CS_GPIO_Port, SPI_SOFT_CS_Pin, GPIO_PIN_SET)
+
+#define SPI_SOFT_SCK_LOW()      HAL_GPIO_WritePin(SPI_SOFT_SCK_GPIO_Port, SPI_SOFT_SCK_Pin, GPIO_PIN_RESET)
+#define SPI_SOFT_SCK_HIGH()     HAL_GPIO_WritePin(SPI_SOFT_SCK_GPIO_Port, SPI_SOFT_SCK_Pin, GPIO_PIN_SET)
+
+#define SPI_SOFT_MOSI_LOW()     HAL_GPIO_WritePin(SPI_SOFT_MOSI_GPIO_Port, SPI_SOFT_MOSI_Pin, GPIO_PIN_RESET)
+#define SPI_SOFT_MOSI_HIGH()    HAL_GPIO_WritePin(SPI_SOFT_MOSI_GPIO_Port, SPI_SOFT_MOSI_Pin, GPIO_PIN_SET)
+
+#define SPI_SOFT_MISO_READ()    HAL_GPIO_ReadPin(SPI_SOFT_MISO_GPIO_Port, SPI_SOFT_MISO_Pin)
+
+uint8_t spi_soft_readwrite_byte(uint8_t Txdata);
+
+#endif /* _SPI_SOFT_H__ */
