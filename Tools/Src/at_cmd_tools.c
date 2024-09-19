@@ -215,7 +215,7 @@ at_cmd_status_t at_sp_cmd_send(at_device_t *at_dev, char *cmd, char *ack, uint32
     }
     at_dev->at_ack_restart();
     uint8_t *ret = NULL;
-    at_dev->at_cmd_pprintf("%s", cmd);
+    at_dev->at_cmd_pprintf(AT_SP_SEND_CMD, cmd);
     printf("cmd: %s", cmd);
     if (timeout == 0)
     {
