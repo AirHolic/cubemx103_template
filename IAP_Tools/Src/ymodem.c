@@ -304,15 +304,18 @@ uint8_t ymodem_recv_status_fun(void)
                 case 1:
                     ymodem_send_ack(YMODEM_NAK);
                     ymodem_status.ymodem_ctrl_flag = 0;
+                    sys_delay_ms(500);
                     break;
                 case 2:
                     ymodem_send_ack(YMODEM_ACK);
                     ymodem_status.ymodem_ctrl_flag = 0;
+                    sys_delay_ms(500);
                     return 0;
                 default:
                     ymodem_status.ymodem_ctrl_flag = 0;
-                    ymodem_send_ack(YMODEM_NAK);
-                    break;
+                    ymodem_send_ack(YMODEM_ACK);
+                    sys_delay_ms(500);
+                    return 0;
                 }
                 switch (ymodem_status.ymodem_cancel_flag)
                 {
@@ -342,10 +345,11 @@ uint8_t ymodem_recv_status_fun(void)
         default:
             return 1;
         }
+        sys_delay_ms(100);
         while(ymodem_data_recv() == 1)
         {
             ymodem_send_ack(YMODEM_NAK);
-            sys_delay_ms(200);
+            sys_delay_ms(50);
         }
         
     }
