@@ -226,7 +226,7 @@ static uint8_t ymodem_data_recv()
     ymodem_data_cpy(buf, len);
     ymodem_get_restart();
 
-    if (ymodem_frame.ymodem_num == 0 && ymodem_frame.ymodem_head == 1)
+    if (ymodem_frame.ymodem_num == 0 && (ymodem_frame.ymodem_head == 1 || ymodem_frame.ymodem_head == 2)) // 起始帧
     { // 判断是否为起始帧或结束帧
         uint8_t ret = ymodem_start_frame_check();
         return ret;
@@ -345,7 +345,7 @@ uint8_t ymodem_recv_status_fun(void)
         default:
             return 1;
         }
-        sys_delay_ms(100);
+        sys_delay_ms(150);
         while(ymodem_data_recv() == 1)
         {
             ymodem_send_ack(YMODEM_NAK);
