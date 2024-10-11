@@ -206,6 +206,26 @@ time_t get_uts(void)
   return rtc_to_utx(time_c);
 }
 
+void get_time(uint8_t *hour, uint8_t *min, uint8_t *sec)
+{
+  RTC_TimeTypeDef GetTime = {0}; // 获取时间结构体
+  HAL_RTC_GetTime(&hrtc, &GetTime, RTC_FORMAT_BIN);
+
+  *hour = GetTime.Hours;
+  *min = GetTime.Minutes;
+  *sec = GetTime.Seconds;
+
+}
+
+void get_date(uint8_t *date, uint8_t *weekday)
+{
+  RTC_DateTypeDef GetDate = {0}; // 获取日期结构体
+  HAL_RTC_GetDate(&hrtc, &GetDate, RTC_FORMAT_BIN);
+
+  *date = GetDate.Date;
+  *weekday = GetDate.WeekDay;
+}
+
 /**
  * @brief  通过时间戳设置时间
  * @param  utx 时间戳
