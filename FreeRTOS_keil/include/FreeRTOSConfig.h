@@ -71,58 +71,116 @@
 #define FREERTOS_CONFIG_H
 
 /*-----------------------------------------------------------
- * Application specific definitions.
+ * 特定于应用程序的定义。
  *
- * These definitions should be adjusted for your particular hardware and
- * application requirements.
+ * 这些定义应根据您的特定硬件进行调整，并且申请条件。
  *
- * THESE PARAMETERS ARE DESCRIBED WITHIN THE 'CONFIGURATION' SECTION OF THE
- * FreeRTOS API DOCUMENTATION AVAILABLE ON THE FreeRTOS.org WEB SITE. 
+ * 这些参数在FreeRTOS API 文档可在 FreeRTOS.org 网站上找到。
  *
- * See http://www.freertos.org/a00110.html.
+ * 见 http://www.freertos.org/a00110.html。
  *----------------------------------------------------------*/
 
-#define configUSE_PREEMPTION		1
-#define configUSE_IDLE_HOOK			0
-#define configUSE_TICK_HOOK			0
-#define configCPU_CLOCK_HZ			( ( unsigned long ) 72000000 )	
-#define configTICK_RATE_HZ			( ( TickType_t ) 1000 )
-#define configMAX_PRIORITIES		( 5 )
-#define configMINIMAL_STACK_SIZE	( ( unsigned short ) 128 )
-#define configTOTAL_HEAP_SIZE		( ( size_t ) ( 17 * 1024 ) )
-#define configMAX_TASK_NAME_LEN		( 16 )
-#define configUSE_TRACE_FACILITY	0
-#define configUSE_16_BIT_TICKS		0
-#define configIDLE_SHOULD_YIELD		1
+#define configUSE_PREEMPTION 1                         /* 1为抢占式调度使能，0为协程 */
+#define configSUPPORT_DYNAMIC_ALLOCATION 1             /* 1为支持动态内存分配，0为用户提供，默认1 */
+#define configCPU_CLOCK_HZ ((unsigned long)72000000)   /* 时钟频率 */
+#define configTICK_RATE_HZ ((TickType_t)1000)          /* 时钟节拍频率，1000为1ms */
+#define configTOTAL_HEAP_SIZE ((size_t)(25 * 1024))    /* 堆大小 */
+#define configUSE_16_BIT_TICKS 0                       /* 1为使用16位时钟节拍，0为使用32位时钟节拍 */
+#define configIDLE_SHOULD_YIELD 0                      /* 1为空闲任务让出CPU，0为不让出 */
+#define configAPPLICATION_ALLOCATED_HEAP 0             /* 1为用户应用程序分配堆，0为FreeRTOS分配堆 */
+#define configSUPPORT_STATIC_ALLOCATION 0              /* 1为空闲任务与定时器任务支持静态内存分配，0为自动提供*/
+#define configUSE_TICKLESS_IDLE 0                      /* 1为使能低功耗tickless模式，0为禁止 */
 
-/* Co-routine definitions. */
-#define configUSE_CO_ROUTINES 		0
-#define configMAX_CO_ROUTINE_PRIORITIES ( 2 )
+/* 回调/钩子函数设置 */
 
-/* Set the following definitions to 1 to include the API function, or zero
-to exclude the API function. */
+#define configUSE_IDLE_HOOK 1                          /* 1为使能空闲钩子函数，0为禁止 */
+#define configUSE_TICK_HOOK 0                          /* 1为使能时钟节拍钩子函数，0为禁止 */
+#define configUSE_DAEMON_TASK_STARTUP_HOOK 0           /* 1为使能守护任务启动钩子函数，0为禁止 */
+#define configUSE_MALLOC_FAILED_HOOK 0                 /* 1为使能内存分配失败钩子函数，0为禁止 */
+#define configUSE_APPLICATION_TASK_TAG 0               /* 1为使能任务标签与回调函数，0为禁止 */
 
-#define INCLUDE_vTaskPrioritySet		1
-#define INCLUDE_uxTaskPriorityGet		1
-#define INCLUDE_vTaskDelete				1
-#define INCLUDE_vTaskCleanUpResources	0
-#define INCLUDE_vTaskSuspend			1
-#define INCLUDE_vTaskDelayUntil			1
-#define INCLUDE_vTaskDelay				1
+/* 任务相关设置 */
 
-/* This is the raw value as per the Cortex-M3 NVIC.  Values can be 255
-(lowest) to 0 (1?) (highest). */
-#define configKERNEL_INTERRUPT_PRIORITY 		255
-/* !!!! configMAX_SYSCALL_INTERRUPT_PRIORITY must not be set to zero !!!!
-See http://www.FreeRTOS.org/RTOS-Cortex-M3-M4.html. */
-#define configMAX_SYSCALL_INTERRUPT_PRIORITY 	191 /* equivalent to 0xb0, or priority 11. */
+#define configMAX_PRIORITIES (5)                       /* 任务优先级数 */
+#define configMAX_TASK_NAME_LEN (16)                   /* 任务名长度 */
+#define configMINIMAL_STACK_SIZE ((unsigned short)128) /* 空闲？任务最小堆栈大小 */
+#define configNUM_THREAD_LOCAL_STORAGE_POINTERS 0     /* 线程本地存储指针数 */
 
+/* 队列与信号量相关设置 */
 
-/* This is the value being used as per the ST library which permits 16
-priority values, 0 to 15.  This must correspond to the
-configKERNEL_INTERRUPT_PRIORITY setting.  Here 15 corresponds to the lowest
-NVIC value of 255. */
-#define configLIBRARY_KERNEL_INTERRUPT_PRIORITY	15
+#define configUSE_QUEUE_SETS 1                      /* 1为使能队列集，0为禁止 */
+#define configQUEUE_REGISTRY_SIZE 0               /* 可以注册的队列和信号量的最大数量，
+                                                    不使用内核调试器的话此宏设置为0 */
+#define configUSE_COUNTING_SEMAPHORES 0           /* 1为使能计数信号量和相关函数，0为禁止 */                                                   
+#define configUSE_MUTEXES 0                       /* 1为使能互斥信号量，0为禁止 */
+#define configUSE_RECURSIVE_MUTEXES 0             /* 1为使能递归互斥信号量，0为禁止 */
+
+/* 软件定时器相关设置 */
+
+#define configUSE_TIMERS 0 /* 1为使能软件定时器，并且下列宏须定义，0为禁止 */
+#define configTIMER_QUEUE_LENGTH 5 /* 软件定时器队列长度 */
+#define configTIMER_TASK_PRIORITY 2      /* 软件定时器任务优先级 */
+#define configTIMER_TASK_STACK_DEPTH 100 /* 软件定时器任务堆栈大小 */
+
+/* 调试时使用的宏定义 */
+
+#define configCHECK_FOR_STACK_OVERFLOW 2    /* 1为快速检查堆栈溢出，2为全面检查堆栈溢出 */
+//#define configASSERT(x) if((x) == 0) {taskDISABLE_INTERRUPTS(); for( ;; );} /* 断言函数 */
+#define configUSE_TASK_NOTIFICATIONS 0 /* 1为使能任务通知，每个任务增加8字节消耗，0为禁止 */
+
+/* 统计与跟踪同时使能为1时，vTaskList()和vTaskGetRunTimeStats()将加入编译 */
+
+#define configUSE_STATS_FORMATTING_FUNCTIONS 0 /* 1为使能统计数据格式化函数，0为禁止 */
+#define configUSE_TRACE_FACILITY 0                     /* 1为使能跟踪功能，0为禁止 */
+
+/* 定义为1时，将会使能任务时间统计功能。*/
+#define configGENERATE_RUN_TIME_STATS 0
+#if (configGENERATE_RUN_TIME_STATS == 1)
+
+#define portCONFIGURE_TIMER_FOR_RUN_TIME_STATS() //添加一个精度高systick的定时器函数
+#define portGET_RUN_TIME_COUNTER_VALUE() //添加返回当前时间的值
+
+#endif
+
+/* 协程定义。*/
+
+#define configUSE_CO_ROUTINES 0 /* 1为使能协程，0为禁止 */
+#define configMAX_CO_ROUTINE_PRIORITIES (2) /* 协程优先级数 */
+
+/* 将以下定义设置为 1 以包含 API 函数，或设置为零以排除 API 函数。*/
+
+#define INCLUDE_vTaskPrioritySet 1 /* 1为包含 vTaskPrioritySet */
+#define INCLUDE_uxTaskPriorityGet 1 /* 1为包含 uxTaskPriorityGet */
+#define INCLUDE_vTaskDelete 1 /* 1为包含 vTaskDelete */
+#define INCLUDE_vTaskCleanUpResources 0 /* 1为包含 vTaskCleanUpResources */
+#define INCLUDE_vTaskSuspend 1 /* 1为包含 vTaskSuspend,即阻塞等待队列 */
+#define INCLUDE_vTaskDelayUntil 1 /* 1为包含 vTaskDelayUntil */
+#define INCLUDE_vTaskDelay 1 /* 1为包含 vTaskDelay */
+#define INCLUDE_xTaskGetSchedulerState 1 /* 1为包含 xTaskGetSchedulerState */
+
+/* 任务切换相关设置 */
+
+#define configUSE_PORT_OPTIMISED_TASK_SELECTION 0 /* 1为使用优化的任务选择，0为通用方法 */
+#define configUSE_TIME_SLICING 1                       /* 1为使能时间片轮转调度，0为禁止 */
+
+/* 这是根据 Cortex-M3 NVIC 的原始值。值可以是 255
+（最低）到 0 （1？）（最高）。*/
+
+#define configKERNEL_INTERRUPT_PRIORITY 255
+
+/* !!!!configMAX_SYSCALL_INTERRUPT_PRIORITY不得设置为零!!!
+请参见 http://www.FreeRTOS.org/RTOS-Cortex-M3-M4.html。*/
+
+#define configMAX_SYSCALL_INTERRUPT_PRIORITY 191 /* 等同于 0xb0，或优先级 11。*/
+
+/* 这是根据 ST 库使用的值，它允许 16 优先级值，0 到 15。 这必须对应于
+configKERNEL_INTERRUPT_PRIORITY设置。 这里 15 对应于最低值NVIC值为255。*/
+
+#define configLIBRARY_KERNEL_INTERRUPT_PRIORITY 15
+
+/* FreeRTOS与中断服务函数有关的配置选项 */
+
+// #define xPortPendSVHandler PendSV_Handler
+// #define vPortSVCHandler SVC_Handler
 
 #endif /* FREERTOS_CONFIG_H */
-
