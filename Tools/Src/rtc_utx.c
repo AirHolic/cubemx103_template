@@ -266,4 +266,49 @@ HAL_StatusTypeDef uts_set_time(time_t utx)
 
   return HAL_OK;
 }
+
+#ifdef STM32F1
+/**
+ * @brief  通过时间戳设置闹钟
+ * @param  utx 时间戳
+ * @retval HAL_StatusTypeDef
+ * @note   闹钟时间为UTC时间,F1芯片的RTC只支持1个闹钟时间的时分秒设置
+ */
+HAL_StatusTypeDef uts_set_alarm(time_t utx)
+{
+  Times rtc = utx_to_rtc(utx);
+  RTC_AlarmTypeDef sAlarm = {0};
+  RTC_TimeTypeDef sTime = {0};
+
+  sTime.Hours = rtc.Hour;
+  sTime.Minutes = rtc.Min;
+  sTime.Seconds = rtc.Second;
+  sAlarm.AlarmTime = sTime;
+  
+  if (HAL_RTC_SetAlarm_IT(&hrtc, &sAlarm, RTC_FORMAT_BIN) != HAL_OK)
+  {
+    return HAL_ERROR;
+  }
+
+  return HAL_OK;
+}
+
+HAL_StatusTypeDef time_set_alarm(uint8_t hour, uint8_t min, uint8_t sec)
+{
+  RTC_AlarmTypeDef sAlarm = {0};
+  RTC_TimeTypeDef sTime = {0};
+
+  sTime.Hours = hour;
+  sTime.Minutes = min;
+  sTime.Seconds = sec;
+  sAlarm.AlarmTime = sTime;
+  
+  if (HAL_RTC_SetAlarm_IT(&hrtc, &sAlarm, RTC_FORMAT_BIN) != HAL_OK)
+  {
+    return HAL_ERROR;
+  }
+  return HAL_OK;
+}
+#endif
+
 #endif // __RTC_EXAMPLE
