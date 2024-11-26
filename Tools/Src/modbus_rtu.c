@@ -195,7 +195,7 @@ uint8_t modbus_rtu_read_input_registers(modbus_rtu_fun_t *fun, uint8_t slave_add
  * @param   data: data buffer
  * @param   data_count: data byte count
 */
-uint8_t modbus_rtu_write(modbus_rtu_fun_t *fun, uint8_t slave_addr, uint8_t function_code, uint16_t reg_addr, uint16_t reg_num, uint8_t *data, uint8_t data_count)
+static uint8_t modbus_rtu_write(modbus_rtu_fun_t *fun, uint8_t slave_addr, uint8_t function_code, uint16_t reg_addr, uint16_t reg_num, uint8_t *data, uint8_t data_count)
 {
     uint8_t buf[MODBUS_RTU_SEND_BUF_LEN] = {0};
     buf[0] = slave_addr;
@@ -523,23 +523,20 @@ uint8_t modbus_rtu_recv_msg_pack(modbus_rtu_fun_t *fun, modbus_rtu_msg_t *msg)
 {
     uint8_t *buf = fun->rtu_rx_get_buf();
     uint16_t len = fun->rtu_rx_get_len();
-    if(buf != NULL)
+    if((len < 6 && buf != NULL))
     {
-    printf("modbus recv:");
-    for(int i = 0; i < len; i++)
-    {
-        printf("%02X ", buf[i]);
-    }
-    printf("\r\n");
-    }
-    if(len < 4)
-    {
+        printf("modbus recv len error: %d\r\n", len);
         fun->rtu_rx_reset();
+        return MODBUS_STATUS_ERROR;
+    }
+    if(buf == NULL)
+    {
         return MODBUS_STATUS_ERROR;
     }
     uint16_t crc = modbus_rtu_crc16(buf, len - 2);
     if(crc != (buf[len - 2] << 8 | buf[len - 1]))
     {
+        printf("modbus crc error\r\n");
         fun->rtu_rx_reset();
         return MODBUS_STATUS_ERROR;
     }
