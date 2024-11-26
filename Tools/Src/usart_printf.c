@@ -68,6 +68,14 @@ int fputc(int ch, FILE *f)
 /**********************************usart外设printf相关函数**************************************/
 /* 空闲中断和dma接收与dma发送 */
 
+/* 串口接收帧缓冲信息结构体示例 
+static uint8_t net_rx_buf[UART_RX_BUFFER_SIZE];
+static uint8_t net_tx_buf[UART_TX_BUFFER_SIZE];
+
+uart_rx_frame net_rx_frame = {.buf = net_rx_buf};
+uart_tx_frame net_tx_frame = {.uart_tx_buf = net_tx_buf};
+*/
+
 /**
  * @brief 通用串口DMA与空闲中断处理函数
  * @param huart 串口句柄
@@ -132,7 +140,7 @@ uint8_t uart_transmit_dma(UART_HandleTypeDef *huart, uart_tx_frame *tx_frame)
 }
 
 /** 串口printf参考函数
-uint8_t uart_printf(UART_HandleTypeDef *huart, uart_tx_frame *tx_frame, char *fmt, ...)
+uint8_t uart_printf(char *fmt, ...)
 {
     va_list ap;
     wait_uart_tx_finish_flag(tx_frame);
@@ -145,7 +153,6 @@ uint8_t uart_printf(UART_HandleTypeDef *huart, uart_tx_frame *tx_frame, char *fm
     return uart_transmit_dma(huart, tx_frame);
 }
 */
-
 
 
 /**
