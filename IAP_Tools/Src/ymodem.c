@@ -56,19 +56,6 @@ static uint8_t ymodem_file_name[64];
 static uint32_t ymodem_file_size = 0;
 static uint32_t ymodem_write_addr = YMODEM_FLASH_ADDR;
 
-/**
- * @brief Ymodem获取数据缓存
- * @return 数据缓存
- */
-static uint8_t *ymodem_get_data_cache(void)
-{
-    if (ymodem_frame.ymodem_data_cache_len == 0)
-    {
-        return NULL;
-    }
-    return ymodem_frame.ymodem_data_cache;
-}
-
 static void ymodem_st_flag_write(uint8_t flag)
 {
     ymodem_status.ymodem_start_or_end_flag = flag;
@@ -82,9 +69,9 @@ static void ymodem_st_flag_write(uint8_t flag)
  * @param get_restart 重启函数
  * @return 0:成功 1:失败
  */
-uint8_t ymodem_init(ymodem_put_t put, ymodem_get_t get, ymodem_get_len_t len, ymodem_get_restart_t get_restart, ymodem_write_flash_t write_flash)
+uint8_t ymodem_init(ymodem_put_t put, ymodem_get_t get, ymodem_get_len_t len, ymodem_get_restart_t get_restart, ymodem_write_flash_t write_flash, ymodem_erase_flash_t erase_flash)
 {
-    if (put == NULL || get == NULL || len == NULL || get_restart == NULL || write_flash == NULL)
+    if (put == NULL || get == NULL || len == NULL || get_restart == NULL || write_flash == NULL || erase_flash == NULL)
     {
         return 1;
     }
@@ -93,7 +80,7 @@ uint8_t ymodem_init(ymodem_put_t put, ymodem_get_t get, ymodem_get_len_t len, ym
     ymodem_get_len = len;
     ymodem_get_restart = get_restart;
     ymodem_write_flash = write_flash;
-    ymodem_erase_flash = mcu_flash_erase;
+    ymodem_erase_flash = erase_flash;
     return 0;
 }
 
