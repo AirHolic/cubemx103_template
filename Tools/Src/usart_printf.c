@@ -53,6 +53,17 @@ char *_sys_command_string(char *cmd, int len)
 /* FILE 在 stdio.h里面定义. */
 FILE __stdout;
 
+__weak void forword_fputc(int ch)
+{
+    // if(condition)
+    // {
+    //     while ((PRINTF_UART->SR & 0X40) == 0)
+    //         ; /* 等待上一个字符发送完成 */
+
+    //     PRINTF_UART->DR = (uint8_t)ch; /* 将要发送的字符 ch 写入到DR寄存器 */
+    // }
+}
+
 /* 重定义fputc函数, printf函数最终会通过调用fputc输出字符串到串口 */
 int fputc(int ch, FILE *f)
 {
@@ -60,6 +71,7 @@ int fputc(int ch, FILE *f)
         ; /* 等待上一个字符发送完成 */
 
     PRINTF_UART->DR = (uint8_t)ch; /* 将要发送的字符 ch 写入到DR寄存器 */
+    forword_fputc(ch);
     return ch;
 }
 #endif
@@ -68,14 +80,6 @@ int fputc(int ch, FILE *f)
 /**********************************usart外设printf相关函数**************************************/
 /* 空闲中断和dma接收与dma发送 */
 
-/* 串口接收帧缓冲信息结构体示例 
-static uint8_t net_rx_buf[UART_RX_BUFFER_SIZE];
-static uint8_t net_tx_buf[UART_TX_BUFFER_SIZE];
-
-uart_rx_frame net_rx_frame = {.buf = net_rx_buf};
-uart_tx_frame net_tx_frame = {.uart_tx_buf = net_tx_buf};
-*/
-
 /**
  * @brief 通用串口DMA与空闲中断处理函数
  * @param huart 串口句柄
@@ -83,7 +87,7 @@ uart_tx_frame net_tx_frame = {.uart_tx_buf = net_tx_buf};
  * @param rx_frame 串口接收帧缓冲信息结构体
  * @retval None
  */
-void uart_irq(UART_HandleTypeDef *huart, DMA_HandleTypeDef *hdma_usart_rx, uart_rx_frame *rx_frame)
+void uart_irq(UART_HandleTypeDef *huart, DMA_HandleTypeDef *hdma_usart_rx, uart_rx_frame *rx_frame, uint16_t rx_len)
 {
     uint16_t tmp = 0;
     if (__HAL_UART_GET_FLAG(huart, UART_FLAG_ORE) != RESET) /* UART接收过载错误中断 */
@@ -99,8 +103,8 @@ void uart_irq(UART_HandleTypeDef *huart, DMA_HandleTypeDef *hdma_usart_rx, uart_
         __HAL_UART_CLEAR_IDLEFLAG(huart);                                                         /* 清除UART总线空闲中断 */
         HAL_UART_DMAStop(huart);                                                                  /* 停止DMA传输 */
         tmp = __HAL_DMA_GET_COUNTER(hdma_usart_rx);                                               /* 清除DMA接收中断标志 */
-        rx_frame->sta.len = ((UART_RX_BUFFER_SIZE - tmp) <= 0) ? 0 : (UART_RX_BUFFER_SIZE - tmp); /* 计算接收到的数据长度 */
-        HAL_UART_Receive_DMA(huart, rx_frame->buf, UART_RX_BUFFER_SIZE);                          /* 重新开始DMA传输 */
+        rx_frame->sta.len = ((rx_len - tmp) <= 0) ? 0 : (rx_len - tmp); /* 计算接收到的数据长度 */
+        HAL_UART_Receive_DMA(huart, rx_frame->buf, rx_len);                          /* 重新开始DMA传输 */
     }
 }
 
@@ -109,10 +113,10 @@ void uart_irq(UART_HandleTypeDef *huart, DMA_HandleTypeDef *hdma_usart_rx, uart_
  * @param huart 串口句柄
  * @retval None
  */
-void uart_enable_dma_it(UART_HandleTypeDef *huart, uart_rx_frame *rx_frame, uart_tx_frame *tx_frame)
+void uart_enable_dma_it(UART_HandleTypeDef *huart, uart_rx_frame *rx_frame, uart_tx_frame *tx_frame, uint16_t rx_len)
 {
 	__HAL_UART_ENABLE_IT(huart, UART_IT_IDLE); /* 使能IDLE中断 */
-    HAL_UART_Receive_DMA(huart, rx_frame->buf, UART_RX_BUFFER_SIZE); /* 开启DMA接收 */
+    HAL_UART_Receive_DMA(huart, rx_frame->buf, rx_len); /* 开启DMA接收 */
     tx_frame->sta.finsh = 1; /* 标记帧发送完成 */
 }
 
@@ -163,9 +167,9 @@ uint8_t uart_printf(char *fmt, ...)
  * @param  len: 待发送的数据长度
  * @retval HAL_StatusTypeDef
 */
-uint8_t uart_hex_printf(UART_HandleTypeDef *huart, uart_tx_frame *tx_frame, uint8_t *buf, uint16_t len)
+uint8_t uart_hex_printf(UART_HandleTypeDef *huart, uart_tx_frame *tx_frame, uint8_t *buf, uint16_t len, uint16_t tx_len)
 {
-    if(len > UART_TX_BUFFER_SIZE)
+    if(len > tx_len)
     {
         return 1;
     }
