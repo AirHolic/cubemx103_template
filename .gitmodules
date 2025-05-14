@@ -1,0 +1,3 @@
+[submodule "Module_Driver/WIZCHIP_SPIdriver"]
+	path = Module_Driver/WIZCHIP_SPIdriver
+	url = git@github.com:AirHolic/WIZCHIP_SPIdriver.git
