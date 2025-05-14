@@ -1,9 +1,18 @@
 #include "rtc_utx.h"
 #include "rtc.h"
-#if EXTERNAL_RTC
+#include <time.h>
+#if EXTERNAL_RTC == 1
 #include "pcf8563_i2c_driver.h"
 #endif
-#include <time.h>
+
+#if RTC_UTX_DEBUG == 1
+#define RTC_UTX_LOG(fmt, ...) printf("[RTC UTX] " fmt "\r\n", ##__VA_ARGS__)
+#else
+#define RTC_UTX_LOG(fmt, ...)
+#endif
+
+static HAL_StatusTypeDef sync_pcf8563_to_rtc(Times *time_c);
+
 /**
  * @brief 时间戳日期数组
  */
@@ -29,21 +38,21 @@ const short __mday[13] =
  * @param year 年份
  * @return 1为闰年，0为平年
  */
-static int __isleap(int year)
+int __isleap(int year)
 {
   return (!(year % 4) && ((year % 100) || !(year % 400)));
 }
 
 /**
- * @brief mktime函数的重写，使用无符号32位整数
+ * @brief mktime函数的重写
  * @param t 时间结构体
- * @return 无符号时间戳
+ * @return 时间戳
  */
-static timestamp_t mymktime(struct tm *const t)
+time_t mymktime(struct tm *const t)
 {
-  timestamp_t day;
-  timestamp_t i;
-  timestamp_t years = t->tm_year - 70;
+  time_t day;
+  time_t i;
+  time_t years = t->tm_year - 70;
 
   if (t->tm_sec > 60)
   {
@@ -87,12 +96,12 @@ static timestamp_t mymktime(struct tm *const t)
   }
 
   if (t->tm_year < 70)
-    return 0;  // 改为返回0而非-1，因为我们使用无符号整数
+    return (time_t)-1;
 
   /* 1970年以来的天数等于365 *年数+ 1970年以来的闰年数 */
   day = years * 365 + (years + 1) / 4;
 
-  /* 2100年以后，计算闰年的方式不一样了，每400年减去3个闰年 */
+  /* 2100年以后，计算闰年的方式不一样了，每400年减去3个闰年，大多数mktime实现不支持2059年后的日期，所以可以把这个省略掉 */
   if ((int)(years -= 131) >= 0)
   {
     years /= 100;
@@ -118,141 +127,108 @@ static timestamp_t mymktime(struct tm *const t)
 
 /**
  * @brief 将时间戳转换为日期
- * @param utx 无符号时间戳
+ * @param uts 时间戳
  * @return 日期
  * @note 时区为东八区
  * @retval Times结构体
 */
-Times utx_to_rtc(timestamp_t utx)
+Times uts_to_rtc(time_t uts)
 {
-  // 加上时区偏移
-  utx += 8 * 3600;
-  
-  // 由于我们不能直接使用标准库的 localtime/gmtime
-  // 需要自行计算日期时间
-  
+  uts += 8 * 3600;
+#ifdef __MDK5
+  struct tm *t = localtime(&uts);
+#endif // DEBUG
+#ifdef __GCC
+  struct tm *t = gmtime(&uts);
+#endif // DEBUG
   Times rtc;
-  uint32_t seconds, minutes, hours, days, year, month, dayOfWeek;
-  uint32_t daysPerMonth[] = {0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
-  
-  // 计算秒、分、时
-  seconds = utx % 60;
-  utx /= 60;
-  minutes = utx % 60;
-  utx /= 60;
-  hours = utx % 24;
-  utx /= 24; // utx现在表示从1970年1月1日开始的天数
-  
-  // 计算星期几 (1970年1月1日是星期四)
-  dayOfWeek = (utx + 4) % 7;
-  if (dayOfWeek == 0)
-    dayOfWeek = 7; // 将星期日从0调整到7
-  
-  // 计算年份
-  year = 1970;
-  days = utx;
-  
-  while (1)
+  rtc.Year = t->tm_year - 100;
+  rtc.Mon = t->tm_mon + 1;
+  rtc.Day = t->tm_mday;
+  rtc.Hour = t->tm_hour;
+  rtc.Min = t->tm_min;
+  rtc.Second = t->tm_sec;
+  rtc.WeekDay = t->tm_wday;
+  if(rtc.WeekDay == 0)
   {
-    uint32_t daysInYear = __isleap(year) ? 366 : 365;
-    if (days < daysInYear)
-      break;
-    days -= daysInYear;
-    year++;
+    rtc.WeekDay = 7;
   }
-  
-  // 计算月份
-  month = 1;
-  if (__isleap(year))
-    daysPerMonth[2] = 29;
-  
-  while (days >= daysPerMonth[month])
-  {
-    days -= daysPerMonth[month];
-    month++;
-  }
-  
-  // 填充结果
-  rtc.Year = year - 1900 - 100; // 转换为RTC使用的年份格式 (year-2000)
-  rtc.Mon = month;
-  rtc.Day = days + 1; // 天数从1开始
-  rtc.Hour = hours;
-  rtc.Min = minutes;
-  rtc.Second = seconds;
-  rtc.WeekDay = dayOfWeek;
-  
-#ifdef RTC_DBUG
-  Lora_printf("rtc.Year = %d\r\n", rtc.Year);
-  Lora_printf("rtc.Mon = %d\r\n", rtc.Mon);
-  Lora_printf("rtc.Day = %d\r\n", rtc.Day);
-  Lora_printf("rtc.Hour = %d\r\n", rtc.Hour);
-  Lora_printf("rtc.Min = %d\r\n", rtc.Min);
-  Lora_printf("rtc.Second = %d\r\n", rtc.Second);
-#endif
-  
+#ifdef RTC_UTX_DEBUG
+  RTC_UTX_LOG("t->tm_year = %d\r\n", t->tm_year);
+  RTC_UTX_LOG("t->tm_mon = %d\r\n", t->tm_mon);
+  RTC_UTX_LOG("t->tm_mday = %d\r\n", t->tm_mday);
+  RTC_UTX_LOG("t->tm_hour = %d\r\n", t->tm_hour);
+  RTC_UTX_LOG("t->tm_min = %d\r\n", t->tm_min);
+  RTC_UTX_LOG("t->tm_sec = %d\r\n", t->tm_sec);
+#endif // RTC_UTX_DEBUG
   return rtc;
 }
 
 /**
  * @brief 将日期转换为时间戳
  * @param rtc 日期
- * @return 无符号时间戳
+ * @return 时间戳
  * @note 时区为东八区
- * @retval 无符号32位时间戳
+ * @retval mktime返回值
 */
-timestamp_t rtc_to_utx(Times rtc)
+time_t rtc_to_uts(Times rtc)
 {
   struct tm t;
   t.tm_year = rtc.Year + 100;
   t.tm_mon = rtc.Mon - 1;
   t.tm_mday = rtc.Day;
-  t.tm_hour = rtc.Hour-8;  // 减去时区偏移
+  t.tm_hour = rtc.Hour-8;
   t.tm_min = rtc.Min;
   t.tm_sec = rtc.Second;
   t.tm_wday = rtc.WeekDay;
-  
-  return (timestamp_t)mymktime(&t);  // 使用自定义的mymktime函数返回无符号时间戳
+  return mymktime(&t);
 }
 
 
 /**
  * @brief  从RTC获取当前时间的时间戳
  * @param  None
- * @retval 无符号时间戳
+ * @retval 时间戳
  * @note   根据EXTERNAL_RTC宏决定从内部RTC还是外部PCF8563获取时间
  */
-timestamp_t get_uts(void)
+time_t get_uts(void)
 {
-#if EXTERNAL_RTC
+#if EXTERNAL_RTC == 1
   // 从PCF8563获取时间
-  pcf8563_time_t pcf_time;
+  PCF8563_Time_t pcf_time;
   Times time_c;
   
-  if(pcf8563_get_time(&pcf_time) != PCF8563_OK) {
+  if(PCF8563_GetTime(&pcf_time) != PCF8563_OK) {
     // PCF8563读取失败，尝试使用内部RTC
-    goto use_internal_rtc;
+    RTC_UTX_LOG("PCF8563 Get Time Error\r\n");
   }
   
   // 检查电压低标志
-  uint8_t vl_flag = 0;
-  pcf8563_check_voltage_low(&vl_flag);
+  if(PCF8563_CheckVL())
+  {
+    // 电压低，时间不可靠，使用内部RTC
+    RTC_UTX_LOG("PCF8563 Voltage Low\r\n");
+  }
+  
+  // if(vl_flag) {
+  //   // 电压低，时间不可靠，使用内部RTC
+  //   goto use_internal_rtc;
+  // }
   
   // PCF8563时间转换为Times结构
-  time_c.Year = pcf_time.years;
-  time_c.Mon = pcf_time.months;
-  time_c.Day = pcf_time.days;
-  time_c.Hour = pcf_time.hours;
-  time_c.Min = pcf_time.minutes;
-  time_c.Second = pcf_time.seconds;
-  time_c.WeekDay = pcf_time.weekdays;
+  time_c.Year = pcf_time.year;
+  time_c.Mon = pcf_time.month;
+  time_c.Day = pcf_time.day;
+  time_c.Hour = pcf_time.hour;
+  time_c.Min = pcf_time.minute;
+  time_c.Second = pcf_time.second;
+  time_c.WeekDay = pcf_time.weekday;
   
   // 同步到内部RTC
   sync_pcf8563_to_rtc(&time_c);
   
-  return rtc_to_utx(time_c);
-  
 //use_internal_rtc:
-#endif
+#else
 
   // 使用内部RTC
   RTC_DateTypeDef GetDate = {0}; 
@@ -269,18 +245,17 @@ timestamp_t get_uts(void)
   time_c.Min = GetTime.Minutes;
   time_c.Second = GetTime.Seconds;
   time_c.WeekDay = GetDate.WeekDay;
-  
-#ifdef RTC_DBUG
-  Lora_printf("time_c.Year = %d\r\n", time_c.Year);
-  Lora_printf("time_c.Mon = %d\r\n", time_c.Mon);
-  Lora_printf("time_c.Day = %d\r\n", time_c.Day);
-  Lora_printf("time_c.WeekDay = %d\r\n", time_c.WeekDay);
-  Lora_printf("time_c.Hour = %d\r\n", time_c.Hour);
-  Lora_printf("time_c.Min = %d\r\n", time_c.Min);
-  Lora_printf("time_c.Second = %d\r\n", time_c.Second);
-#endif // RTC_DBUG
-
-  return rtc_to_utx(time_c);
+#endif // EXTERNAL_RTC
+#ifdef RTC_UTX_DEBUG
+  RTC_UTX_LOG("time_c.Year = %d\r\n", time_c.Year);
+  RTC_UTX_LOG("time_c.Mon = %d\r\n", time_c.Mon);
+  RTC_UTX_LOG("time_c.Day = %d\r\n", time_c.Day);
+  RTC_UTX_LOG("time_c.WeekDay = %d\r\n", time_c.WeekDay);
+  RTC_UTX_LOG("time_c.Hour = %d\r\n", time_c.Hour);
+  RTC_UTX_LOG("time_c.Min = %d\r\n", time_c.Min);
+  RTC_UTX_LOG("time_c.Second = %d\r\n", time_c.Second);
+#endif // RTC_UTX_DEBUG
+  return rtc_to_uts(time_c);
 }
 
 /**
@@ -292,22 +267,20 @@ timestamp_t get_uts(void)
  */
 void get_time(uint8_t *hour, uint8_t *min, uint8_t *sec)
 {
-#if EXTERNAL_RTC
+#if EXTERNAL_RTC == 1
   // 从PCF8563获取时间
-  pcf8563_time_t pcf_time;
+  PCF8563_Time_t pcf_time;
   
-  if(pcf8563_get_time(&pcf_time) == PCF8563_OK) {
-    uint8_t vl_flag = 0;
-    pcf8563_check_voltage_low(&vl_flag);
-    if(!vl_flag) {
-      *hour = pcf_time.hours;
-      *min = pcf_time.minutes;
-      *sec = pcf_time.seconds;
+  if(PCF8563_GetTime(&pcf_time) == PCF8563_OK) {
+    if(!PCF8563_CheckVL()) {
+      *hour = pcf_time.hour;
+      *min = pcf_time.minute;
+      *sec = pcf_time.second;
       return;
     }
   }
   // 如果PCF8563读取失败，回退到内部RTC
-#endif
+#else
 
   RTC_TimeTypeDef GetTime = {0}; 
   HAL_RTC_GetTime(&hrtc, &GetTime, RTC_FORMAT_BIN);
@@ -315,6 +288,8 @@ void get_time(uint8_t *hour, uint8_t *min, uint8_t *sec)
   *hour = GetTime.Hours;
   *min = GetTime.Minutes;
   *sec = GetTime.Seconds;
+  return;
+#endif
 }
 
 /**
@@ -327,14 +302,12 @@ void get_date(uint8_t *date, uint8_t *weekday)
 {
 #if EXTERNAL_RTC
   // 从PCF8563获取日期
-  pcf8563_time_t pcf_time;
+  PCF8563_Time_t pcf_time;
   
-  if(pcf8563_get_time(&pcf_time) == PCF8563_OK) {
-    uint8_t vl_flag = 0;
-    pcf8563_check_voltage_low(&vl_flag);
-    if(!vl_flag) {
-      *date = pcf_time.days;
-      *weekday = pcf_time.weekdays;
+  if(PCF8563_GetTime(&pcf_time) == PCF8563_OK) {
+    if(!PCF8563_CheckVL()) {
+      *date = pcf_time.day;
+      *weekday = pcf_time.weekday;
       return;
     }
   }
@@ -350,30 +323,27 @@ void get_date(uint8_t *date, uint8_t *weekday)
 
 /**
  * @brief  通过时间戳设置时间
- * @param  utx 无符号时间戳
+ * @param  uts 时间戳
  * @retval HAL_StatusTypeDef
  */
-HAL_StatusTypeDef uts_set_time(timestamp_t utx)
+HAL_StatusTypeDef uts_set_time(time_t uts)
 {
-  Times rtc = utx_to_rtc(utx);
-  HAL_StatusTypeDef status;
+  Times rtc = uts_to_rtc(uts);
+  //HAL_StatusTypeDef status;
 
 #if EXTERNAL_RTC
   // 设置PCF8563时间
-  pcf8563_time_t pcf_time;
-  pcf_time.seconds = rtc.Second;
-  pcf_time.minutes = rtc.Min;
-  pcf_time.hours = rtc.Hour;
-  pcf_time.days = rtc.Day;
-  pcf_time.weekdays = rtc.WeekDay;
-  pcf_time.months = rtc.Mon;
-  pcf_time.years = rtc.Year;
-  
-  // 清除掉电标志
-  pcf8563_clear_voltage_low();
+  PCF8563_Time_t pcf_time;
+  pcf_time.second = rtc.Second;
+  pcf_time.minute = rtc.Min;
+  pcf_time.hour = rtc.Hour;
+  pcf_time.day = rtc.Day;
+  pcf_time.weekday = rtc.WeekDay;
+  pcf_time.month = rtc.Mon;
+  pcf_time.year = rtc.Year;
   
   // 设置PCF8563时间
-  pcf8563_status_t pcf_status = pcf8563_set_time(&pcf_time);
+  int pcf_status = PCF8563_SetTime(&pcf_time);
 #endif
 
   // 同时设置内部RTC时间
@@ -443,13 +413,13 @@ static HAL_StatusTypeDef sync_pcf8563_to_rtc(Times *time_c)
 #ifdef STM32F1
 /**
  * @brief  通过时间戳设置闹钟
- * @param  utx 无符号时间戳
+ * @param  uts 时间戳
  * @retval HAL_StatusTypeDef
  * @note   闹钟时间为UTC时间,F1芯片的RTC只支持1个闹钟时间的时分秒设置
  */
-HAL_StatusTypeDef uts_set_alarm(timestamp_t utx)
+HAL_StatusTypeDef uts_set_alarm(time_t uts)
 {
-  Times rtc = utx_to_rtc(utx);
+  Times rtc = uts_to_rtc(uts);
   RTC_AlarmTypeDef sAlarm = {0};
   RTC_TimeTypeDef sTime = {0};
 
@@ -466,6 +436,28 @@ HAL_StatusTypeDef uts_set_alarm(timestamp_t utx)
   return HAL_OK;
 }
 
+HAL_StatusTypeDef time_set_time(uint8_t hour, uint8_t min, uint8_t sec)
+{
+  RTC_TimeTypeDef sTime = {0};
+  sTime.Hours = hour;
+  sTime.Minutes = min;
+  sTime.Seconds = sec;
+
+  if (HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BIN) != HAL_OK)
+  {
+    return HAL_ERROR;
+  }
+  return HAL_OK;
+} 
+
+/**
+ * @brief  外置rtc条件下设置秒级闹钟
+ * 
+ * @param hour 
+ * @param min 
+ * @param sec 
+ * @return HAL_StatusTypeDef 
+ */
 HAL_StatusTypeDef time_set_alarm(uint8_t hour, uint8_t min, uint8_t sec)
 {
   RTC_AlarmTypeDef sAlarm = {0};

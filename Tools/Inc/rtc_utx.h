@@ -11,7 +11,8 @@
 #include <time.h>
 #endif /* MDK5 */
 
-typedef uint32_t timestamp_t;
+#define EXTERNAL_RTC 1
+#define RTC_UTX_DEBUG 1
 
 /**
  * @brief 时间日期结构体
@@ -27,14 +28,15 @@ typedef struct times
     int WeekDay;
 } Times;
 
-Times utx_to_rtc(timestamp_t utx);
-timestamp_t rtc_to_utx(Times rtc);
+Times uts_to_rtc(time_t uts);
+time_t rtc_to_uts(Times rtc);
 
-timestamp_t get_uts(void);
+time_t get_uts(void);
 void get_time(uint8_t *hour, uint8_t *min, uint8_t *sec);
 void get_date(uint8_t *date, uint8_t *weekday);
-HAL_StatusTypeDef uts_set_time(timestamp_t utx);
-HAL_StatusTypeDef uts_set_alarm(timestamp_t utx);
+HAL_StatusTypeDef uts_set_time(time_t uts);
+HAL_StatusTypeDef time_set_time(uint8_t hour, uint8_t min, uint8_t sec);
+HAL_StatusTypeDef uts_set_alarm(time_t uts);
 HAL_StatusTypeDef time_set_alarm(uint8_t hour, uint8_t min, uint8_t sec);
 
 #endif /* _RTC_UTX_H__ */

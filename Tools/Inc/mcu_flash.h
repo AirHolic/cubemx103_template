@@ -5,8 +5,8 @@
 
 #define FLASH_START_ADDR 0x08000000
 #define FLASH_TYPE FLASH_PAGE
-#define FLASH_TOTAL_NUM 127
-#define LARGE_FLASH
+#define FLASH_TOTAL_NUM *(uint16_t*)(0x1FFFF7E0)//似乎仅正版可用
+#define MIDDLE_FLASH
 
 #if (FLASH_TYPE == FLASH_PAGE)
 
@@ -29,4 +29,4 @@ void mcu_flash_nocheck_write(uint32_t addr, uint32_t *data, uint32_t size);
 void mcu_uint8_flash_write(uint32_t addr, uint8_t *data, uint32_t size);
 void mcu_flash_read(uint32_t addr, uint32_t *data, uint32_t size);
 
-#endif /* _MCU_FLASH_H__ */
+#endif /* __MCU_FLASH_H__ */

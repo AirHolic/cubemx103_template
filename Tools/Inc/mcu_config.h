@@ -1,8 +1,44 @@
+﻿/**
+ * @file mcu_config.h
+ * @author AirHolic
+ * @brief mcu配置文件,用于存储设备配置,网络配置,LORA配置等
+ * @version 0.5
+ * @date 2025-03-17
+ * 
+ * @copyright Copyright (c) 2025
+ * 
+ */
 #ifndef __MCU_CONFIG_H__
 #define __MCU_CONFIG_H__
 
+#define W25QXX_FLASH
+#define NETWORK_CONFIG 1
+#define CONFIG_NULL 0xFFFFFFFF
+#define CONFIG32_SUCCESS 0x00000000
+#define CONFIG32_ERROR 0xFFFFFFFF
+#define CONFIG16_SUCCESS 0x0000
+#define CONFIG16_ERROR 0xFFFF
+#define CONFIG8_SUCCESS 0x00
+#define CONFIG8_ERROR 0xFF
+
+#ifdef MCU_FLASH
+
+#define MCU_CONFIG_ADDR FLASH_PAGEx(19)//配置存储地址
+
 typedef void (*config_save_t)(uint32_t addr, uint32_t *data, uint32_t size);
 typedef void (*config_load_t)(uint32_t addr, uint32_t *data, uint32_t size);
+
+#endif
+
+#ifdef W25QXX_FLASH
+
+#include "w25qxx_spi_driver.h"
+#define MCU_CONFIG_ADDR W25QXX_SECTOR_ADDR(0)//配置存储地址
+
+typedef void (*config_save_t)(uint8_t *data, uint32_t addr, uint32_t size);
+typedef void (*config_load_t)(uint8_t *data, uint32_t addr, uint32_t size);
+
+#endif
 
 //配置项保存和加载函数
 typedef struct
@@ -11,7 +47,7 @@ typedef struct
     config_load_t config_load;
 }mcu_config_func_t;
 
-//设备ID
+//设备配置
 typedef struct
 {
     uint16_t device_id;
@@ -44,10 +80,6 @@ typedef struct
 } mcu_lora_config_t;
 #endif
 
-mcu_config_func_t mcu_config_func = {mcu_flash_write, mcu_flash_read};//配置项保存和加载函数
-
-#define MCU_CONFIG_PAGE 120//配置存储页
-
 void mcu_config_read_from_flash(void);
 void mcu_config_save_to_flash(void);
 void system_config_read(mcu_system_config_t *system_config);
@@ -65,8 +97,6 @@ void lora_config_modify(mcu_lora_config_t lora_config);
 
 uint8_t mcu_system_config_id_modify(uint16_t device_id);
 uint16_t mcu_system_config_id_read(void);
-// uint8_t mcu_system_config_timestamp_modify(uint32_t timestamp);
-// uint32_t mcu_system_config_timestamp_read(void);
 
 #if NETWORK_CONFIG == 1
 uint8_t mcu_network_config_tcp_server_ip_modify(char *tcp_server_ip);

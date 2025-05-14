@@ -3,6 +3,13 @@
 #include "stdio.h"
 #include "at_cmd_tools.h"
 
+#define AT_CMD_TOOLS_DEBUG 1
+#if AT_CMD_TOOLS_DEBUG == 1
+#define AT_LOG(fmt, ...) printf("[AT TOOLS] " fmt "\r\n", ##__VA_ARGS__)
+#else
+#define AT_LOG(fmt, ...)
+#endif
+
 /**
  * @brief       以AT模块AT指令的格式获取src中的第param_index个参数到dts
  * @param       src        : AT模块的AT响应
@@ -162,7 +169,7 @@ at_cmd_status_t at_cmd_send(at_device_t *at_dev, char *cmd, char *ack, uint32_t 
     at_dev->at_ack_restart();
     uint8_t *ret = NULL;
     at_dev->at_cmd_pprintf("%s\r\n", cmd);
-    printf("cmd: %s\r\n", cmd);
+    AT_LOG("cmd: %s\r\n", cmd);
     if (timeout == 0)
     {
         return AT_CMD_OK;
@@ -173,7 +180,7 @@ at_cmd_status_t at_cmd_send(at_device_t *at_dev, char *cmd, char *ack, uint32_t 
         ret = at_dev->at_cmd_ack();
         if (ret != NULL)
         {
-            printf("ret: %s\r\n", ret);
+            AT_LOG("ret: %s\r\n", ret);
             if (ack != NULL)
             {
                 if (strstr((const char *)ret, ack) != NULL)
@@ -216,7 +223,7 @@ at_cmd_status_t at_sp_cmd_send(at_device_t *at_dev, char *cmd, char *ack, uint32
     at_dev->at_ack_restart();
     uint8_t *ret = NULL;
     at_dev->at_cmd_pprintf(AT_SP_SEND_CMD, cmd);
-    printf("cmd: %s", cmd);
+    AT_LOG("cmd: %s", cmd);
     if (timeout == 0)
     {
         return AT_CMD_OK;
@@ -227,7 +234,7 @@ at_cmd_status_t at_sp_cmd_send(at_device_t *at_dev, char *cmd, char *ack, uint32
         ret = at_dev->at_cmd_ack();
         if (ret != NULL)
         {
-            printf("ret: %s\r\n", ret);
+            AT_LOG("ret: %s\r\n", ret);
             if (ack != NULL)
             {
                 if (strstr((const char *)ret, ack) != NULL)
